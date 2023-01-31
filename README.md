@@ -13,6 +13,6 @@ Most of the data that will be used in this repository will be obtained from the 
 
 The datasets will be chosen to create the best opportunity to showcase the statisitcal model being utilized. This means that simple and multiple linear regression will utilize similar dataset while the dataset used for logistic regression will be very different.
 
-## Aknowledgments
+## Acknowledgments
 
 This work is/was originally done as the final project for STA 631 - Statistical Modeling and Regression at Grand Valley State University with Professor Bradford Dykes. Thank you for continued help and support.
