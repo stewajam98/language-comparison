@@ -1,0 +1,98 @@
+---
+title: "Linear Regression - R"
+author: "James 'Mac' Stewart"
+date: '2023-03-02'
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+## Necessary Packages
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+```
+
+## Importing and Cleaning Data
+
+The following code chunk was taken from [tidy Tuesday](https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-01-25/readme.md) where we pull in data. I chose to use their data cleaning code as this is not the main goal of the project.
+
+```{R}
+ratings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-25/ratings.csv')
+details <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-25/details.csv')
+```
+
+After pulling in the two included data sets, I then want to combine them into a single flat file. I am pulling in only the average variable from the ratings data set. I will also be dropping a few of the variables included in the details tab as they will not be used for the scope of this project.
+
+```{R}
+ratings_small <- ratings %>% select(id, name, average)
+details_small <- details %>% select(-c(num, description, wishing, wanting, trading, owned, boardgameexpansion, boardgameimplementation))
+```
+
+This function allows us to pull the first part of each of the listed variables like boardgamecategory. While the full list would be more beneficial, the first listed item in these categories are enough for the scope of this project.
+
+```{R}
+get_first_part <- function(word){
+  list = str_split(word, "'")
+  first_word = list[[1]][2]
+  return(first_word)
+}
+```
+
+We will then apply this function to the variables boardgamecategory, boardgamemechanic, boardgamefamily, boardgamedesigner, boardgameartist, and boardgamepublisher. It is important that, if run multiple times, that you apply the function on the original data set columns. Otherwise, it will not find error out on the next run.
+
+```{R}
+details_small$boardgamecategory <- details %>%
+  select(boardgamecategory) %>%
+  apply(1, get_first_part)
+
+details_small$boardgamemechanic <- details %>%
+  select(boardgamemechanic) %>%
+  apply(1, get_first_part)
+
+details_small$boardgamefamily <- details %>%
+  select(boardgamefamily) %>%
+  apply(1, get_first_part)
+
+details_small$boardgamedesigner <- details %>%
+  select(boardgamedesigner) %>%
+  apply(1, get_first_part)
+
+details_small$boardgameartist <- details %>%
+  select(boardgameartist) %>%
+  apply(1, get_first_part)
+
+details_small$boardgamepublisher <- details %>%
+  select(boardgamepublisher) %>%
+  apply(1, get_first_part)
+```
+
+Finally, we need to join the two tables together to create the final data set.
+
+```{R}
+final_data <- merge(details_small, ratings_small, "id") %>%
+  select(-primary, -id)
+```
+
+## Graphing the Variables
+
+We will then graph each of the independent variables against the dependent variable. This will allow us to see which ones might have a correlation which will aide in choosing which factors to include in our analysis. Due to the large number of possiblities for the character variables, I will only be graphing the relationships with the numeric variables.
+
+```{R}
+final_data %>%
+  select(average, yearpublished, minplayers, maxplayers, playingtime, minplaytime, maxplaytime, minage) %>%
+  ggpairs()
+```
+
+## Simple Linear Regression
+
+It appears that minage has the greatest (negative) correlation with the average rating score. Because of this, we will use this variable for our simple linear regression.
+
+```{R}
+slrm1 <- lm(average ~ minage, data = final_data)
+
+tidy(slrm1)
+```
