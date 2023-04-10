@@ -113,7 +113,7 @@ def get_first_part(word):
 In terms of making basic functions, python seems to be more intuitive. The actual text altering seemed relatively the same, although python views strings as a list which could make it slightly easier for some more complex modifications.
 
 ```{python}
-details_small['boardgamecategory'] = [get_first_part(x) for x in details_small['boardgamecategory']
+details_small['boardgamecategory'] = [get_first_part(x) for x in details_small['boardgamecategory']]
 details_small['boardgamemechanic'] = [get_first_part(x) for x in details_small['boardgamemechanic']]
 details_small['boardgamefamily'] = [get_first_part(x) for x in details_small['boardgamefamily']]
 details_small['boardgamedesigner'] = [get_first_part(x) for x in details_small['boardgamedesigner']]
