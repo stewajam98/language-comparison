@@ -1,6 +1,6 @@
-# R vs Python Regression Analysis Comparison
+# R vs Python Data Modeling Comparison
 
-This repository looks to compare how R and Python handle different regression analysis techniques. Specifically, it will show examples of different models, the output that it produces, and my experiences and opinions of how they worked together.
+This repository looks to compare how R and Python handle different data modeling techniques. Specifically, it will show examples of different models, the output that it produces, and my experiences and opinions of how they worked together.
 
 ## Organization
 
