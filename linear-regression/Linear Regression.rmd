@@ -2,7 +2,9 @@
 title: "Linear Regression - R"
 author: "James 'Mac' Stewart"
 date: '2023-03-02'
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
