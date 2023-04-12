@@ -17,6 +17,8 @@ library(tidyverse)
 library(tidymodels)
 library(GGally)
 library(reticulate)
+library(leaps)
+library(forcats)
 ```
 
 ## Importing Data
@@ -81,11 +83,96 @@ details_small$boardgamepublisher <- details %>%
   apply(1, get_first_part)
 ```
 
-Finally, we need to join the two tables together to create the final data set.
+We need to join the two tables together to create the final data set and make the character variables factors.
 
 ```{R}
 final_data <- merge(details_small, ratings_small, "id") %>%
   select(-primary, -id)
+
+final_data$boardgameartist <- as.factor(final_data$boardgameartist)
+final_data$boardgamecategory <- as.factor(final_data$boardgamecategory)
+final_data$boardgamedesigner <- as.factor(final_data$boardgamedesigner)
+final_data$boardgamefamily <- as.factor(final_data$boardgamefamily)
+final_data$boardgamemechanic <- as.factor(final_data$boardgamemechanic)
+final_data$boardgamepublisher <- as.factor(final_data$boardgamepublisher)
+```
+
+For the factor variables, we will want to check how many levels there are and simplify them down so that dummy variables created later will be easier to make. We utilize the fct_other() function in the forcats package.
+
+```{R}
+### boardgamecategory
+#getting frequency tables for each variable
+table = count(final_data, boardgamecategory)
+table %>%
+  arrange(desc(n))
+
+# there are 83 levels of this factor. We are going to keep the top 5 and turn everything else into other
+# top 5 num > 1000
+final_data <- final_data %>%
+  mutate(
+    category = fct_other(boardgamecategory, keep = c("Card Game", "Abstract Strategy", "Adventure", "Action / Dexterity", "Animals"), other_level = "Other"))
+
+#verifying this is working
+table = count(final_data, category)
+table %>%
+  arrange(desc(n))
+
+### boardgamepublisher
+table = count(final_data, boardgamepublisher)
+table %>%
+  arrange(desc(n))
+
+#keeping levels over 200
+over200 <- c("(Self-Published)", "(Web published)", "Hasbro", "Decision Games (I)", "GMT Games", "Ravensburger", "AMIGO", "KOSMOS", "(Public Domain)", "999 Games", "Asmodee")
+final_data <- final_data %>%
+  mutate(publisher = fct_other(boardgamepublisher, keep = over200, other_level = "Other"))
+
+### boardgameartist
+table = count(final_data, boardgameartist)
+table %>%
+  arrange(desc(n))
+
+#keeping anything over 100
+over100 <- c("(Uncredited)", "Franz Vohwinkel", "Redmond A. Simonsen", "Michael Menzel", "Klemens Franz", "Oliver Freudenreich", "Nicolás Eskubi")
+final_data <- final_data %>%
+  mutate(artist = fct_other(boardgameartist, keep = over100, other_level = "Other"))
+
+### boardgamefamily
+table = count(final_data, boardgamefamily)
+table %>%
+  arrange(desc(n))
+
+# keeping everything over 200
+over200 <- c("Crowdfunding: Kickstarter", "Admin: Better Description Needed!", "Players: Two Player Only Games", "Category: Combinatorial", "Components: Miniatures")
+final_data <- final_data %>%
+  mutate(family = fct_other(boardgamefamily, keep = over200, other_level = "Other"))
+
+### boardgamemechanic
+table = count(final_data, boardgamemechanic)
+table %>%
+  arrange(desc(n))
+
+# keeping everythin over 1000
+over1000 = c("Dice Rolling", "Hand Management", "Area Majority / Influence", "Card Drafting", "Action Points", "Cooperative Game")
+final_data <- final_data %>%
+  mutate(mechanic = fct_other(boardgamemechanic, keep = over1000, other_level = "Other"))
+
+### boardgamedesigner
+table = count(final_data, boardgamedesigner)
+table %>%
+  arrange(desc(n))
+
+# keeping everything over 100
+over100 <- c("(Uncredited)", "Reiner Knizia", "Richard H. Berg", "Joseph Miranda")
+final_data <- final_data %>%
+  mutate(designer = fct_other(boardgamedesigner, keep = over100, other_level = "Other"))
+```
+
+Now that I have narrowed down the factor variables, I am going to drop the unedited factor vars from the dataset
+
+```{R}
+final_data <- final_data %>%
+  select(-boardgamecategory, -boardgamemechanic, -boardgamefamily, -boardgameartist, -boardgamepublisher, -boardgamedesigner, -name)
 ```
 
 ## Cleaning Data - Python
@@ -141,6 +228,13 @@ final_data %>%
   ggpairs()
 ```
 
+It looks like maxplaytime and playingtime are perfectly correlated so we will drop one of these variables to keep all the variables reasonably indepednet.
+
+```{R}
+final_data <- final_data %>%
+  select(-maxplaytime)
+```
+
 ## Graphing the Variables - Python
 
 I was a little worried about this step. However a stack overflow [post](https://stackoverflow.com/questions/68967458/is-there-is-an-equivalent-of-rs-ggallyggpairs-function-in-python) recommended using Seaborn's pairgrid package.
@@ -188,3 +282,100 @@ glance(slrm1)
 With an r^2 value of ~0.037, a simple linear regression does not seem to be appropriate to model the relationship between the independent and dependent variables. Because of this, a multiple linear regression will be created.
 
 ## Simple Linear Regression - Python
+
+Most or all of the python model creation will be done using scikit learn's modeling packages. Specifically, they have an overarching package for regression which will be utilized heavily.
+
+```{python}
+from scikitlearn.linear_model import LinearRegression as LR
+from scikitlern.metrics import r2_score
+
+# creating and fitting the model
+slr1 = LR().fit(x = final_data['minage'], y = final_data['average'])
+
+# getting the r^2 score of the model
+predictions = slr1.predict(final_data['minage']) # getting predictions
+score = r2_score(final_data['average'], predictions) # getting r2_score
+
+print(score) # printing out the score
+```
+
+***I am having trouble getting reticulate to print out the stuff from the scikit learn programs. Because of this, I am going to continue on with the R portion and come back to the python work***
+
+## Multiple Linear Regression - R
+
+When doing modeling with multiple independent variables, you will often need to find a subset of these variables that will be useful. To do this we are going to first run the model with all variables to see what happens.
+
+As a reminder the dependent variables available to us are:
+  - yearpublished
+  - minplayers
+  - maxplayers
+  - playingtime
+  - minplaytime
+  - minage
+  - category (factor)
+  - mechanic (factor)
+  - family (factor)
+  - designer (factor)
+  - artist (factor)
+  - publisher (factor)
+
+
+```{R}
+# running the full model with all variable
+mlr1 <- lm(average ~ ., data = final_data)
+tidy(mlr1)
+glance(mlr1)
+```
+
+This gave us an r^2 value considerably better than the simple linear regression model that we created previously. Additionally, all of the dependent variable seem to be significant predictors of the average score. We will need to check the assumptions of this model using QQ plots.
+
+## Checking Assumptions - R
+
+```{R}
+plots = plot(mlr1)
+```
+
+The assumptions of linear regression are as follows.
+
+  1. Linear Relationship
+    - We can judge this using the fitted vs residuals plot. As you can see, there does seem to be some sort of relationship following the line in the center. There are some deviations however in the outliers.
+  2. Independence
+    - We judge this based on the way we collect the variables. While we don't know for sure if the average score people give is affected at all by other board games, we can assume that this noise is canceled out by law of large numbers.
+  3. Constant Variance
+    - Here is where the biggest issue is with the model. The variance kind of spreads out towards the middle of the pack and then shrinks as you go towards the end. Because of this we can attempt to transform the average score which will be done below.
+  4. Normality
+    - Here we can asses this using the QQ plot provided. There is a slight curve from the line towards the outliers, but the center really follows a straight line. This will be reassessed after the transformation from constant variance to see if that makes any difference.
+    
+    
+```{R}
+### taking the log of the dependent variable
+mlr2 <- lm(log(average) ~ ., data = final_data)
+glance(mlr2)
+
+plot(mlr2)
+
+# this caused a worse model and the QQ plot to be less normal
+
+### taking the square root of the dependent variable
+mlr3 <- lm(sqrt(average) ~ ., data = final_data)
+glance(mlr3)
+
+plot(mlr3)
+
+# this did not much better
+
+### taking the square of the dependent variable
+mlr4 <- lm(average**2 ~ ., data = final_data)
+glance(mlr4)
+
+plot(mlr4)
+
+# this did slightly better and would be the model we use
+
+
+```
+  
+Finally, we will need to test for multi-colinearity because it is a multiple linear regression
+
+
+
