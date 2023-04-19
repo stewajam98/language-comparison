@@ -45,135 +45,145 @@ ratings_small <- ratings %>% select(id, name, average)
 details_small <- details %>% select(-c(num, description, wishing, wanting, trading, owned, boardgameexpansion, boardgameimplementation))
 ```
 
-This function allows us to pull the first part of each of the listed variables like boardgamecategory. While the full list would be more beneficial, the first listed item in these categories are enough for the scope of this project.
+This function allows us to get a frequency table of all the words that are in the category so that we can pick out the top ones to include as variables.
 
 ```{R}
-get_first_part <- function(word){
-  list = str_split(word, "'")
-  first_word = list[[1]][2]
-  return(first_word)
+# function for getting the top words
+get_top_words <- function(data, var){
+  # create dictionary
+  words <- c()
+  
+  # cycle through data variable
+  for(i in 1:nrow(data)){
+    
+    # get list of words for the categorical variable
+    string = str_replace_all(data[[var]][i], c("', ","\""), '')
+    list <- str_split(string, "'")
+    
+    list = list[!is.na(list)]
+    if(length(list) >= 1){
+      # cycle through list of words
+      for(i in 1:(length(list[[1]]))){
+        if(list[[1]][i] %in% names(words)){
+          words[list[[1]][i]] = words[list[[1]][i]] + 1
+        } else {
+          words[list[[1]][i]] = 1
+        }
+      }
+    }
+    
+  }
+  
+  words = words[order(unlist(words), decreasing = TRUE)]
+  return(words[3:20])
+  
 }
 ```
 
-We will then apply this function to the variables boardgamecategory, boardgamemechanic, boardgamefamily, boardgamedesigner, boardgameartist, and boardgamepublisher. It is important that, if run multiple times, that you apply the function on the original data set columns. Otherwise, it will not find error out on the next run.
-
-```{R}
-details_small$boardgamecategory <- details %>%
-  select(boardgamecategory) %>%
-  apply(1, get_first_part)
-
-details_small$boardgamemechanic <- details %>%
-  select(boardgamemechanic) %>%
-  apply(1, get_first_part)
-
-details_small$boardgamefamily <- details %>%
-  select(boardgamefamily) %>%
-  apply(1, get_first_part)
-
-details_small$boardgamedesigner <- details %>%
-  select(boardgamedesigner) %>%
-  apply(1, get_first_part)
-
-details_small$boardgameartist <- details %>%
-  select(boardgameartist) %>%
-  apply(1, get_first_part)
-
-details_small$boardgamepublisher <- details %>%
-  select(boardgamepublisher) %>%
-  apply(1, get_first_part)
-```
-
-We need to join the two tables together to create the final data set and make the character variables factors.
-
-```{R}
-final_data <- merge(details_small, ratings_small, "id") %>%
-  select(-primary, -id)
-
-final_data$boardgameartist <- as.factor(final_data$boardgameartist)
-final_data$boardgamecategory <- as.factor(final_data$boardgamecategory)
-final_data$boardgamedesigner <- as.factor(final_data$boardgamedesigner)
-final_data$boardgamefamily <- as.factor(final_data$boardgamefamily)
-final_data$boardgamemechanic <- as.factor(final_data$boardgamemechanic)
-final_data$boardgamepublisher <- as.factor(final_data$boardgamepublisher)
-```
-
-For the factor variables, we will want to check how many levels there are and simplify them down so that dummy variables created later will be easier to make. We utilize the fct_other() function in the forcats package.
+Below, I run the above function on each of the categorical variables and then select the specific variables in a list that I want to check.
 
 ```{R}
 ### boardgamecategory
-#getting frequency tables for each variable
-table = count(final_data, boardgamecategory)
-table %>%
-  arrange(desc(n))
-
-# there are 83 levels of this factor. We are going to keep the top 5 and turn everything else into other
-# top 5 num > 1000
-final_data <- final_data %>%
-  mutate(
-    category = fct_other(boardgamecategory, keep = c("Card Game", "Abstract Strategy", "Adventure", "Action / Dexterity", "Animals"), other_level = "Other"))
-
-#verifying this is working
-table = count(final_data, category)
-table %>%
-  arrange(desc(n))
-
-### boardgamepublisher
-table = count(final_data, boardgamepublisher)
-table %>%
-  arrange(desc(n))
-
-#keeping levels over 200
-over200 <- c("(Self-Published)", "(Web published)", "Hasbro", "Decision Games (I)", "GMT Games", "Ravensburger", "AMIGO", "KOSMOS", "(Public Domain)", "999 Games", "Asmodee")
-final_data <- final_data %>%
-  mutate(publisher = fct_other(boardgamepublisher, keep = over200, other_level = "Other"))
-
-### boardgameartist
-table = count(final_data, boardgameartist)
-table %>%
-  arrange(desc(n))
-
-#keeping anything over 100
-over100 <- c("(Uncredited)", "Franz Vohwinkel", "Redmond A. Simonsen", "Michael Menzel", "Klemens Franz", "Oliver Freudenreich", "Nicolás Eskubi")
-final_data <- final_data %>%
-  mutate(artist = fct_other(boardgameartist, keep = over100, other_level = "Other"))
-
-### boardgamefamily
-table = count(final_data, boardgamefamily)
-table %>%
-  arrange(desc(n))
-
-# keeping everything over 200
-over200 <- c("Crowdfunding: Kickstarter", "Admin: Better Description Needed!", "Players: Two Player Only Games", "Category: Combinatorial", "Components: Miniatures")
-final_data <- final_data %>%
-  mutate(family = fct_other(boardgamefamily, keep = over200, other_level = "Other"))
+print(get_top_words(details, "boardgamecategory"))
+# I'm going to use the top 8 categories along with adventure and puzzle
+categories <- c("Card Game", "Wargame", "Fantasy", "Party Game", "Dice", "Science Fiction", "Fighting", "Abstract Strategy", "Adventure", "Puzzle")
 
 ### boardgamemechanic
-table = count(final_data, boardgamemechanic)
-table %>%
-  arrange(desc(n))
+print(get_top_words(details, "boardgamemechanic"))
+# i kept the top 10 and then cooperative as this seemed like a bad one to leave out
+mechanics <- c("Dice Rolling", "Hand Management", "Set Collection", "Variable Player Powers", "Hexagon Grid", "Simulation", "Card Drafting", "Tile Placement", "Modular Board", "Grid Movement", "Cooperative Game")
 
-# keeping everythin over 1000
-over1000 = c("Dice Rolling", "Hand Management", "Area Majority / Influence", "Card Drafting", "Action Points", "Cooperative Game")
-final_data <- final_data %>%
-  mutate(mechanic = fct_other(boardgamemechanic, keep = over1000, other_level = "Other"))
+### boardgamefamily
+print(get_top_words(details, "boardgamefamily"))
+# there was a significant drop off after the third family so I only kept those
+families <- c("Players: Two Player Only Games", "Crowdfunding: Kickstarter", "Players: Games with Solitaire Rules")
 
-### boardgamedesigner
-table = count(final_data, boardgamedesigner)
-table %>%
-  arrange(desc(n))
+### boardgamedesinger
+print(get_top_words(details, "boardgamedesigner"))
+# there was no real cutoff after the first one so I'm only going to keep everything over 100
+# for this one I kept (Uncredited) as I feel like this might be a genre of indie designers on its own
+designers <- c("(Uncredited)", "Reiner Knizia", "Joseph Miranda", "Wolfgang Kramer", "Richard H. Berg")
 
-# keeping everything over 100
-over100 <- c("(Uncredited)", "Reiner Knizia", "Richard H. Berg", "Joseph Miranda")
-final_data <- final_data %>%
-  mutate(designer = fct_other(boardgamedesigner, keep = over100, other_level = "Other"))
+### boardgameartist
+print(get_top_words(details, "boardgameartist"))
+# similar there didn't seem to be any huge cut off after the first one so I'm keeping everything over 200
+artists <- c("Rodger B. MacGowan", "(Uncredited)", "Franz Vohwinkel", "Redmond A. Simonsen", "Mark Simonitch")
+
+### boardgamepublisher
+print(get_top_words(details, "boardgamepublisher"))
+# Once again, there isn't a stark cut off
+publishers <- c("Hasbro", "(Self-Published)", "Asmodee", "Ravensburger", "Parker Brothers", "(Web published)", "Pegasus Spiele", "999 Games", "Korea Boardgames Co., Ltd.", "KOSMOS", "Hobby World", "Edge Entertainment")
+
+
 ```
 
-Now that I have narrowed down the factor variables, I am going to drop the unedited factor vars from the dataset
+I am now going to create a function that will create a variable i a specific dataset using a string and then cycle through each of the rows to see if they contain that specific string.
 
 ```{R}
-final_data <- final_data %>%
-  select(-boardgamecategory, -boardgamemechanic, -boardgamefamily, -boardgameartist, -boardgamepublisher, -boardgamedesigner, -name)
+# creating the function
+create_variable_count <- function(var1, var2){
+  # creates the new variable
+  details_small[[var1]] <<- 0
+  
+  # iterate through each row of the second variable
+  for(i in 1:nrow(details_small)){
+    # if string 1 is contained in string 2 then 
+    if(grepl(var1, details_small[[var2]][i])){
+      # set the value of the new variable on that row to equal 1
+      details_small[[var1]][i] <<- 1
+    }
+  }
+}
 ```
+
+
+I am now going to apply this function to each of the lists created in the prior section for each of the categorical variables.
+
+```{R}
+# categories
+for(i in categories){
+  create_variable_count(i, "boardgamecategory")
+}
+
+# artists
+for(i in artists){
+  create_variable_count(i, "boardgameartist")
+}
+
+# designers
+for(i in designers){
+  create_variable_count(i, "boardgamedesigner")
+}
+
+# families
+for(i in families){
+  create_variable_count(i, "boardgamefamily")
+}
+
+# mechanics
+for(i in mechanics){
+  create_variable_count(i, "boardgamemechanic")
+}
+
+# publishers
+for(i in publishers){
+  create_variable_count(i, "boardgamepublisher")
+}
+
+```
+
+We need to join the two tables together to create the final data set and make the. We also need to make sure that the variables created are now factor variables
+
+```{R}
+# merging the dataset
+final_data <- merge(details_small, ratings_small, "id") %>%
+  select(-primary, -id, -name, -boardgamecategory, -boardgamemechanic, -boardgamefamily, -boardgamedesigner, -boardgameartist, -boardgamepublisher)
+
+# creating the factor variables
+vars <- c(8:52)
+final_data[,vars] <- lapply(final_data[,vars], factor)
+```
+
 
 ## Cleaning Data - Python
 
@@ -234,6 +244,29 @@ It looks like maxplaytime and playingtime are perfectly correlated so we will dr
 final_data <- final_data %>%
   select(-maxplaytime)
 ```
+
+There is an extreme outlier regarding playingtime that I believe should be removed as it looks like an error. Additionally, there is an average score above 10 which is false data.There are also games with playingtime of 0. However, there are so many of them that it does not seem correct to remove them. This error will most likely cause issues, especially as it looks like there seems to be an exponential relationship between playingtime and average score.
+
+```{R}
+final_data <- final_data %>%
+  filter(average <= 10) %>%
+  filter(playingtime <= 30000)
+```
+
+It also looks like there are some exponential relationships between some of the independent and dependent variables. I will do a log function to try to linearize this. It is important to note, that there are 0 values in here. Because of this, all of the datapoints will be increased by 1 so that they are able to be used.
+
+```{R}
+final_data$log_playingtime <- log(final_data$playingtime + 1)
+final_data$log_minplaytime <- log(final_data$minplaytime + 1)
+
+## checking to see if the relationship improved at all
+final_data %>%
+  select(average, playingtime, log_playingtime, minplaytime, log_minplaytime) %>%
+  ggpairs()
+
+```
+
+While this doenst look the best, there does seem to be some improvement, so we will continue with these variables.
 
 ## Graphing the Variables - Python
 
@@ -312,12 +345,12 @@ As a reminder the dependent variables available to us are:
   - playingtime
   - minplaytime
   - minage
-  - category (factor)
-  - mechanic (factor)
-  - family (factor)
-  - designer (factor)
-  - artist (factor)
-  - publisher (factor)
+  - categories[1:10] (factor)
+  - mechanics[1:11] (factor)
+  - families[1:3] (factor)
+  - designers[1:5] (factor)
+  - artists[1:5] (factor)
+  - publishers[1:12] (factor)
 
 
 ```{R}
@@ -327,55 +360,45 @@ tidy(mlr1)
 glance(mlr1)
 ```
 
-This gave us an r^2 value considerably better than the simple linear regression model that we created previously. Additionally, all of the dependent variable seem to be significant predictors of the average score. We will need to check the assumptions of this model using QQ plots.
+This gave us an r^2 value considerably better than the simple linear regression model that we created previously. However, there are many variables in here that don't seem to be statistically significant. Because of this, we might want to try some feature selection methods on our model.
 
-## Checking Assumptions - R
+### backward selection
+
+Backward selection removes variables until the best model is created.
 
 ```{R}
-plots = plot(mlr1)
+models_back <- stats::step(mlr1, direction = "backward")
 ```
 
-The assumptions of linear regression are as follows.
+Now we will look at the model.
 
-  1. Linear Relationship
-    - We can judge this using the fitted vs residuals plot. As you can see, there does seem to be some sort of relationship following the line in the center. There are some deviations however in the outliers.
-  2. Independence
-    - We judge this based on the way we collect the variables. While we don't know for sure if the average score people give is affected at all by other board games, we can assume that this noise is canceled out by law of large numbers.
-  3. Constant Variance
-    - Here is where the biggest issue is with the model. The variance kind of spreads out towards the middle of the pack and then shrinks as you go towards the end. Because of this we can attempt to transform the average score which will be done below.
-  4. Normality
-    - Here we can asses this using the QQ plot provided. There is a slight curve from the line towards the outliers, but the center really follows a straight line. This will be reassessed after the transformation from constant variance to see if that makes any difference.
-    
-    
 ```{R}
-### taking the log of the dependent variable
-mlr2 <- lm(log(average) ~ ., data = final_data)
-glance(mlr2)
-
-plot(mlr2)
-
-# this caused a worse model and the QQ plot to be less normal
-
-### taking the square root of the dependent variable
-mlr3 <- lm(sqrt(average) ~ ., data = final_data)
-glance(mlr3)
-
-plot(mlr3)
-
-# this did not much better
-
-### taking the square of the dependent variable
-mlr4 <- lm(average**2 ~ ., data = final_data)
-glance(mlr4)
-
-plot(mlr4)
-
-# this did slightly better and would be the model we use
-
-
+glance(models_back)
+tidy(models_back)
 ```
-  
-Finally, we will need to test for multi-colinearity because it is a multiple linear regression
+
+
+### forward selection
+
+Forward selection adds variables to the model until the best model is created.
+
+```{R}
+models_for <- stats::step(mlr1, direction = "forward")
+```
+
+Now we will look at the model
+
+```{R}
+glance(models_for)
+tidy(models_for)
+```
+
+While both models seem to be about the same in terms of r^2 and adjusted r^2, the backwards selection seems to be simpler so that is the base model that we will use.
+
+### Interaction Effects
+
+Now that we have a base selection of variables, I want to see if any interaction affects can be included to make the model better.
+
 
 
 

@@ -1,0 +1,194 @@
+---
+title: "Logistic Regression"
+author: "James "Mac" Stewart"
+date: '2023-04-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+library(caret)
+```
+
+## Importing Data
+
+The following code chunk was taken from [tidy Tuesday](https://github.com/rfordatascience/tidytuesday/blob/master/data/2023/2023-04-04/readme.md) where we pull in data. I chose to use their data cleaning code as this is not the main goal of the project.
+
+The data that we are using here is regarding Premier League matches in the 2021-2022 season. While this gives us the full game data, I will only be using the data that doesn't specify who wins. For instance, I will not be using the full time goals. I am hoping to predict who wins the game using both simple and multiple logistic regression. For these, I will only use the games with a decisive winner. After, I will use a multinomial logistic model and use the 'D' level outcomes.
+
+```{R}
+soccer <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-04-04/soccer21-22.csv')
+```
+
+The primary variable that we will be trying to predict is called FTR or full time result. This is a character variable that states either H or A for home or away team. 
+
+# Data Cleaning - R
+
+The first thing that I need to do is remove the full time goals. These are directly related to who wins so it would not be good to include. I will also be removing the date variable as I will not be doing any time series analysis.
+
+```{R}
+soccer2 <- soccer %>%
+  select(-FTHG, -FTAG, -Date)
+```
+
+The next thing I want to do is simplify the referee, hometeam, and awayteam variables as I believe there will be too many levels to these factor variables;
+
+```{R}
+## looking at referee variable
+soccer2 %>%
+  count(Referee) %>%
+  group_by(Referee)
+
+## looking at hometeam
+soccer2 %>%
+  count(HomeTeam) %>%
+  group_by(HomeTeam)
+
+## looking at awayteam
+soccer2 %>%
+  count(AwayTeam) %>%
+  group_by(AwayTeam)
+
+```
+
+There are 22 different Referees and 20 different teams. Because of how many teams/referees there are, I am going to leave these variables out. However, they might be looked at later if time allows.
+
+```{R}
+soccer2 <- soccer2 %>%
+  select(-Referee, -HomeTeam, -AwayTeam)
+```
+
+For the first set of regressional analysis, I will only be using the games that had a decisive home or away team winner. The following code chunk creates a new dataset with only those. This drops out approximately 88 rows of data.
+
+```{R}
+soccer_decisive <- soccer2 %>%
+  filter(FTR != 'D')
+```
+
+Next, I'm going to create factors out of the FTR and HTR so that they can be treated as such. I will do this for both the full soccer2 dataset and the soccer_decisive datasets.
+
+```{R}
+# full dataset
+soccer2$FTR <- as.factor(soccer2$FTR)
+soccer2$HTR <- as.factor(soccer2$HTR)
+
+#decisive dataset
+soccer_decisive$FTR <- as.factor(soccer_decisive$FTR)
+soccer_decisive$HTR <- as.factor(soccer_decisive$HTR)
+
+```
+
+# Exploratory Data Analysis - R
+
+Here, I am going to do some basic exploratory data analysis to see important information about each of the variables.
+
+Knowledge on how to get this summary table was taken from [Statology](https://www.statology.org/summary-statistics-in-r-dplyr/)
+
+```{R}
+soccer_decisive %>%
+  summarise(across(where(is.numeric), .fns = list(
+    min = min,
+    median = median,
+    average = mean,
+    stdev = sd,
+    max = max
+  ))) %>%
+  pivot_longer(everything(), names_sep = '_', names_to=c('variable', '.value'))
+
+```
+
+There doesn't seem to be anything majorly off with these variables. Now I am going to use ggpairs() to see the relationship between each pair of variables.
+
+```{R}
+soccer_decisive %>%
+  ggpairs()
+```
+
+While it is hard to see with these visualizations, there do appear to be some relationships.
+
+# Simple Logistic Regression
+
+Because we are trying to predict things, I will be using a train-test split.
+
+```{R}
+# creating ID variable
+soccer_decisive$id <- 1:nrow(soccer_decisive)
+
+# I will use a 75-25 train test split
+train <- soccer_decisive %>%
+  dplyr::sample_frac(0.75)
+
+test <- dplyr::anti_join(soccer_decisive, train, by = 'id')
+```
+
+For simple logistic regression, I want to try a few variables. First, I want to try HTHG and HTAG. I also want to see if HST or AST seem to have a relationship.
+
+```{R}
+# half time home goals
+slogr_hthg <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HTHG, data = train, family = "binomial")
+
+tidy(slogr_hthg) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_hthg, (test %>% select(-FTR)))
+
+slogr_hthg_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_hthg_cm)
+
+# half time away goals
+slogr_htag <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HTAG, data = train, family = "binomial")
+
+tidy(slogr_htag) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_htag, (test %>% select(-FTR)))
+
+slogr_htag_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_htag_cm)
+
+# home team shots on target
+slogr_hst <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HST, data = train, family = "binomial")
+
+tidy(slogr_hst) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_hst, (test %>% select(-FTR)))
+
+slogr_hst_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_hst_cm)
+
+# away team shots on target
+slogr_ast <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ AST, data = train, family = "binomial")
+
+tidy(slogr_ast) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_ast, (test %>% select(-FTR)))
+
+slogr_ast_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_ast_cm)
+```
+
+
+
+
+
