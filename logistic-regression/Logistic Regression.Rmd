@@ -115,9 +115,9 @@ soccer_decisive %>%
   ggpairs()
 ```
 
-While it is hard to see with these visualizations, there do appear to be some relationships.
+While it is hard to see with these visualizations, there do appear to be some relationships. Specifically, you can see some interactions between HS-AS, HS-HST, HS-AST, AS-AST, and AS-AC. If these variables are significant predictors in the model, we might include their interaction affects.
 
-# Simple Logistic Regression
+# Simple Logistic Regression - R
 
 Because we are trying to predict things, I will be using a train-test split.
 
@@ -130,6 +130,12 @@ train <- soccer_decisive %>%
   dplyr::sample_frac(0.75)
 
 test <- dplyr::anti_join(soccer_decisive, train, by = 'id')
+
+train <- train %>%
+  select(-id)
+
+test <- test %>%
+  select(-id)
 ```
 
 For simple logistic regression, I want to try a few variables. First, I want to try HTHG and HTAG. I also want to see if HST or AST seem to have a relationship.
@@ -187,6 +193,358 @@ predictions <- predict(slogr_ast, (test %>% select(-FTR)))
 slogr_ast_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
 print(slogr_ast_cm)
 ```
+
+All of these models seem to work pretty well. The best model out of all of them seemed to be the number of shots on target by the away team (slogr_ast). This model had an accuracy of 0.7945, sensitivity of 0.70, and specificity of 0.88. This is promising. However it might be possible to get a better understanding with multiple logistic regression.
+
+# Multiple Logistic Regression - R
+
+The process for multiple logistic regression is very similar to simple logistic regression. We will first run a model with all of the variables included.
+
+```{R}
+# full model
+mlogr_full <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train, family = "binomial")
+
+tidy(mlogr_full) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_full, (test %>% select(-FTR)))
+
+mlogr_full_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(mlogr_full_cm)
+```
+
+The full model that was created worked really well. However, there are many variables included that don't need to be. The following lines of code will go step-by-step and remove them.
+
+```{R}
+### removing id as it shouldn't be included and then AS because it has the highest p-value
+train1 <- train %>% select(-AS)
+test1 <- test %>% select(-AS)
+
+mlogr_1 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train1, family = "binomial")
+
+tidy(mlogr_1) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_1, (test1 %>% select(-FTR)))
+
+mlogr_1_cm <- confusionMatrix(data = predictions[[1]], reference = (test1 %>% select(FTR))[[1]])
+print(mlogr_1_cm)
+```
+This model had a better accuracy. The next variable we will remove is AY.
+
+```{R}
+train2 <- train %>% select(-AS, -AY)
+test2 <- test %>% select(-AS, -AY)
+
+mlogr_2 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train2, family = "binomial")
+
+tidy(mlogr_2) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_2, (test2 %>% select(-FTR)))
+
+mlogr_2_cm <- confusionMatrix(data = predictions[[1]], reference = (test2 %>% select(FTR))[[1]])
+print(mlogr_2_cm)
+```
+
+This didn't seem to have much affect. The next variable to remove is HS.
+
+```{R}
+train3 <- train %>% select(-AS, -AY, -HS)
+test3 <- test %>% select(-AS, -AY, -HS)
+
+mlogr_3 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train3, family = "binomial")
+
+tidy(mlogr_3) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_3, (test3 %>% select(-FTR)))
+
+mlogr_3_cm <- confusionMatrix(data = predictions[[1]], reference = (test3 %>% select(FTR))[[1]])
+print(mlogr_3_cm)
+```
+
+This didn't change much about the accuracy but the specificity of this model is better. Next, I will remove HTAG.
+
+```{R}
+train4 <- train %>% select(-AS, -AY, -HS, -HTAG)
+test4 <- test %>% select(-AS, -AY, -HS, -HTAG)
+
+mlogr_4 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train4, family = "binomial")
+
+tidy(mlogr_4) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_4, (test4 %>% select(-FTR)))
+
+mlogr_4_cm <- confusionMatrix(data = predictions[[1]], reference = (test4 %>% select(FTR))[[1]])
+print(mlogr_4_cm)
+```
+
+The Next variable to remove is HY.
+
+```{R}
+train5 <- train %>% select(-AS, -AY, -HS, -HTAG, -HY)
+test5 <- test %>% select(-AS, -AY, -HS, -HTAG, -HY)
+
+mlogr_5 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train5, family = "binomial")
+
+tidy(mlogr_5) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_5, (test5 %>% select(-FTR)))
+
+mlogr_5_cm <- confusionMatrix(data = predictions[[1]], reference = (test5 %>% select(FTR))[[1]])
+print(mlogr_5_cm)
+```
+
+The next variable to be removed is AF.
+
+```{R}
+train6 <- train %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF)
+test6 <- test %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF)
+
+mlogr_6 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train6, family = "binomial")
+
+tidy(mlogr_6) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_6, (test6 %>% select(-FTR)))
+
+mlogr_6_cm <- confusionMatrix(data = predictions[[1]], reference = (test6 %>% select(FTR))[[1]])
+print(mlogr_6_cm)
+```
+
+The next variable to be removed is HTHG.
+
+```{R}
+train7 <- train %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG)
+test7 <- test %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG)
+
+mlogr_7 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train7, family = "binomial")
+
+tidy(mlogr_7) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_7, (test7 %>% select(-FTR)))
+
+mlogr_7_cm <- confusionMatrix(data = predictions[[1]], reference = (test7 %>% select(FTR))[[1]])
+print(mlogr_7_cm)
+```
+
+The next variable to be removed is AR.
+
+```{R}
+train8 <- train %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG, -AR)
+test8 <- test %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG, -AR)
+
+mlogr_8 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train8, family = "binomial")
+
+tidy(mlogr_8) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_8, (test8 %>% select(-FTR)))
+
+mlogr_8_cm <- confusionMatrix(data = predictions[[1]], reference = (test8 %>% select(FTR))[[1]])
+print(mlogr_8_cm)
+```
+
+
+The next variable to be removed is HF.
+
+```{R}
+train9 <- train %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG, -AR, -HF)
+test9 <- test %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG, -AR, -HF)
+
+mlogr_9 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train9, family = "binomial")
+
+tidy(mlogr_9) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_9, (test9 %>% select(-FTR)))
+
+mlogr_9_cm <- confusionMatrix(data = predictions[[1]], reference = (test9 %>% select(FTR))[[1]])
+print(mlogr_9_cm)
+```
+
+The accuracy significantly improved after removing this variable. The next variable to remove is AC.
+
+```{R}
+train10 <- train %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG, -AR, -HF, -AC)
+test10 <- test %>% select(-AS, -AY, -HS, -HTAG, -HY, -AF, -HTHG, -AR, -HF, -AC)
+
+mlogr_10 <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ ., data = train10, family = "binomial")
+
+tidy(mlogr_10) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_10, (test10 %>% select(-FTR)))
+
+mlogr_10_cm <- confusionMatrix(data = predictions[[1]], reference = (test10 %>% select(FTR))[[1]])
+print(mlogr_10_cm)
+```
+
+The accuracy of this model seemed to go backwards from the previous one. Because of this, the mlogr_9 model will be the one that I will continue with. The function of this includes
+
+  FTR ~ HTR + HST + AST + HC + AC + HR
+  
+```{R}
+# looking at the ggpairs output, it looks like there are a few interaction affects between the variables included in this model.
+mlogr_more <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HTR + HST + AST + HC + AC + HR + HS + (HS*HST) + (HS*AST) + (AS*AST) + (AS*AC), data = train, family = "binomial")
+
+tidy(mlogr_more) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_more, (test %>% select(-FTR)))
+
+mlogr_more_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(mlogr_more_cm)
+```
+
+It looks like the interaction between AST and AS is not significant. So I will remove this.
+
+```{R}
+# looking at the ggpairs output, it looks like there are a few interaction affects between the variables included in this model.
+mlogr_more <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HTR + HST + AST + HC + AC + HR + HS + (HS*HST) + (HS*AST) + (AS*AC), data = train, family = "binomial")
+
+tidy(mlogr_more) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(mlogr_more, (test %>% select(-FTR)))
+
+mlogr_more_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(mlogr_more_cm)
+```
+
+This ended up making the accuracy worse. So, while the interaction between AST and AS didn't seem significant, it is going to stay in the model. Because of this, the final model will be as follows.
+
+  FTR ~ HTR + HST + AST + HC + AC + HR + (HS * HST) + (HS * AST) + (AS * AST) + (AS * AC)
+  
+# Multinomial Logistic Regression
+
+The previous models that we created only allowed for a binary classification (Home or Away Team). However, the dataset has a third classification available (D for a tie). To do this, we will need a multinomial logistic regression model.
+
+First we need to create a train-test split for the full model.
+
+```{R}
+# creating ID variable
+soccer2$id <- 1:nrow(soccer2)
+
+# I will use a 75-25 train test split
+train <- soccer2 %>%
+  dplyr::sample_frac(0.75)
+
+test <- dplyr::anti_join(soccer2, train, by = 'id')
+
+train <- train %>%
+  select(-id)
+
+test <- test %>%
+  select(-id)
+```
+
+Now, we will run the model using the multinom_reg() function.
+
+```{R}
+# running model
+multi <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  fit(FTR ~ ., data = train)
+
+multi <- repair_call(multi, data = train)
+
+# viewing coefficients
+tidy(multi) %>%
+  print(n= Inf)
+
+# getting predictions
+predictions <- predict(multi, (test %>% select(-FTR)))
+
+# printing confusion matrix
+multi_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(multi_cm)
+```
+
+There are a decent number of variables included in this model that aren't significant. These should be dropped from the model. The first variable to drop will be Af as it has a relatively high p-value for both of the model equations.
+
+```{R}
+train2 <- train %>% select(-AF)
+test2 <- test %>% select(-AF)
+
+# running model
+multi2 <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  fit(FTR ~ ., data = train2)
+
+multi2 <- repair_call(multi2, data = train2)
+
+# viewing coefficients
+tidy(multi2) %>%
+  print(n= Inf)
+
+# getting predictions
+predictions <- predict(multi2, (test2 %>% select(-FTR)))
+
+# printing confusion matrix
+multi2_cm <- confusionMatrix(data = predictions[[1]], reference = (test2 %>% select(FTR))[[1]])
+print(multi2_cm)
+
+```
+
+Removing these variables seemed to make the prediction worse. So we will continue with including all of the variables. However, we can try to see if there are any interaction affects that will be helpful.
+
+```{R}
+multi_more <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  fit(FTR ~ . + (HS * AS) + (HS * HST) + (HS*AST) + (AS*AST)+(AS*AC), data = train)
+
+multi_more <- repair_call(multi_more, data = train)
+
+#viewing coefficients
+tidy(multi_more) %>%
+  print(n = Inf)
+
+# getting predictions
+predictions <- predict(multi_more, (test %>% select(-FTR)))
+
+# printing confusion matrix
+multi_more_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(multi_more_cm)
+
+```
+
+
+
+
+
+
+
 
 
 
