@@ -1,0 +1,130 @@
+---
+title: "Multinomial Logistic Regression"
+author: "James "Mac" Stewart"
+date: '2023-04-24'
+output: html_document
+---
+  
+# Multinomial Logistic Regression
+
+```{r setup, include=FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+library(caret)
+```
+
+## Importing Data
+
+Here, we are importing the dataset that was created through the data cleaning file in the same repository. I will also be making the character variables factors so that they can work with the models that we will be creating.
+
+```{R}
+# reading in the data
+soccer2 <- read.csv("~/R/sta631/language-comparison/logistic-regression/Data/soccer.csv")
+
+# making factor variables
+soccer2$FTR <- as.factor(soccer2$FTR)
+soccer2$HTR <- as.factor(soccer2$HTR)
+```
+
+## R
+
+The previous models that we created only allowed for a binary classification (Home or Away Team). However, the data set has a third classification available (D for a tie). To do this, we will need a multinomial logistic regression model.
+
+First we need to create a train-test split for the full model.
+
+```{R}
+# creating ID variable
+soccer2$id <- 1:nrow(soccer2)
+
+# I will use a 75-25 train test split
+train <- soccer2 %>%
+  dplyr::sample_frac(0.75)
+
+test <- dplyr::anti_join(soccer2, train, by = 'id')
+
+train <- train %>%
+  select(-id)
+
+test <- test %>%
+  select(-id)
+```
+
+Now, we will run the model using the multinom_reg() function.
+
+```{R}
+# running model
+multi <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  fit(FTR ~ ., data = train)
+
+multi <- repair_call(multi, data = train)
+
+# viewing coefficients
+tidy(multi) %>%
+  print(n= Inf)
+
+# getting predictions
+predictions <- predict(multi, (test %>% select(-FTR)))
+
+# printing confusion matrix
+multi_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(multi_cm)
+```
+
+There are a decent number of variables included in this model that aren't significant. These should be dropped from the model. The first variable to drop will be Af as it has a relatively high p-value for both of the model equations.
+
+```{R}
+train2 <- train %>% select(-AF)
+test2 <- test %>% select(-AF)
+
+# running model
+multi2 <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  fit(FTR ~ ., data = train2)
+
+multi2 <- repair_call(multi2, data = train2)
+
+# viewing coefficients
+tidy(multi2) %>%
+  print(n= Inf)
+
+# getting predictions
+predictions <- predict(multi2, (test2 %>% select(-FTR)))
+
+# printing confusion matrix
+multi2_cm <- confusionMatrix(data = predictions[[1]], reference = (test2 %>% select(FTR))[[1]])
+print(multi2_cm)
+
+```
+
+Removing these variables seemed to make the prediction worse. So we will continue with including all of the variables. However, we can try to see if there are any interaction affects that will be helpful.
+
+```{R}
+multi_more <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  fit(FTR ~ . + (HS * AS) + (HS * HST) + (HS*AST) + (AS*AST)+(AS*AC), data = train)
+
+multi_more <- repair_call(multi_more, data = train)
+
+#viewing coefficients
+tidy(multi_more) %>%
+  print(n = Inf)
+
+# getting predictions
+predictions <- predict(multi_more, (test %>% select(-FTR)))
+
+# printing confusion matrix
+multi_more_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(multi_more_cm)
+
+```

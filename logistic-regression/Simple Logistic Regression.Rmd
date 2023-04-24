@@ -1,0 +1,117 @@
+---
+title: "Simple Logistic Regression"
+author: "James "Mac" Stewart"
+date: '2023-04-19'
+output: html_document
+---
+
+# Simple Logistic Regression
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+library(caret)
+```
+
+## Importing Data
+
+Here, we are importing the dataset that was created through the data cleaning file in the same repository. I will also be making the character variables factors so that they can work with the models that we will be creating.
+
+```{R}
+# reading in the data
+soccer_decisive <- read.csv("~/R/sta631/language-comparison/logistic-regression/Data/soccer_binary.csv")
+
+# making factor variables
+soccer_decisive$FTR <- as.factor(soccer_decisive$FTR)
+soccer_decisive$HTR <- as.factor(soccer_decisive$HTR)
+```
+
+## R
+
+Because we are trying to predict things, I will be using a train-test split.
+
+```{R}
+# creating ID variable
+soccer_decisive$id <- 1:nrow(soccer_decisive)
+
+# I will use a 75-25 train test split
+train <- soccer_decisive %>%
+  dplyr::sample_frac(0.75)
+
+test <- dplyr::anti_join(soccer_decisive, train, by = 'id')
+
+train <- train %>%
+  select(-id)
+
+test <- test %>%
+  select(-id)
+```
+
+For simple logistic regression, I want to try a few variables. First, I want to try HTHG and HTAG. I also want to see if HST or AST seem to have a relationship.
+
+```{R}
+# half time home goals
+slogr_hthg <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HTHG, data = train, family = "binomial")
+
+tidy(slogr_hthg) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_hthg, (test %>% select(-FTR)))
+
+slogr_hthg_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_hthg_cm)
+
+# half time away goals
+slogr_htag <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HTAG, data = train, family = "binomial")
+
+tidy(slogr_htag) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_htag, (test %>% select(-FTR)))
+
+slogr_htag_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_htag_cm)
+
+# home team shots on target
+slogr_hst <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ HST, data = train, family = "binomial")
+
+tidy(slogr_hst) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_hst, (test %>% select(-FTR)))
+
+slogr_hst_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_hst_cm)
+
+# away team shots on target
+slogr_ast <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(FTR ~ AST, data = train, family = "binomial")
+
+tidy(slogr_ast) %>%
+  knitr::kable(digits = 3)
+
+predictions <- predict(slogr_ast, (test %>% select(-FTR)))
+
+slogr_ast_cm <- confusionMatrix(data = predictions[[1]], reference = (test %>% select(FTR))[[1]])
+print(slogr_ast_cm)
+```
+
+All of these models seem to work pretty well. The best model out of all of them seemed to be the number of shots on target by the away team (slogr_ast). This model had an accuracy of 0.7945, sensitivity of 0.70, and specificity of 0.88. This is promising. However it might be possible to get a better understanding with multiple logistic regression.
+
