@@ -1,0 +1,92 @@
+---
+title: "Simple Discriminant Analysis"
+author: "James "Mac" Stewart"
+date: '2023-04-24'
+output: html_document
+---
+
+```{r setup, include=FALSE, waring = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(discrim)
+```
+
+# Reading in the data
+
+The particular data that we are looking at regards the UN Votes on a few different issues. It was obtained from the [tidy tuesday github page](https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-03-23/readme.md). While there were 6 issues being discussed in total, I chose to only look at the Palestinian conflict issue. Additionally, while there are three class levels to the vote (yes, abstain, and no), I need to only have a binary variable. Because of this, I will be looking at whether or not the individual country voted "Yes".
+
+```{R}
+unvotes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-23/unvotes.csv')
+issues <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-23/issues.csv')
+```
+
+The following code chunk combines the datasets together and then filters on what was discussed at the beginning of the section.
+
+```{R}
+# merging the two datasets together.
+data <- merge(unvotes, issues, by = "rcid", all.x = TRUE)
+
+# filtering, creating binary vote, and selecting columns
+data <- data %>%
+  filter(issue == "Palestinian conflict") %>%
+  mutate(binary_vote = ifelse(vote == "yes", "yes", "no")) %>%
+  select(country, binary_vote)
+
+# making the variables factors.
+data$country <- as.factor(data$country)
+data$binary_vote = as.factor(data$binary_vote)
+```
+
+# Simple Discriminant Analysis - R
+
+The first thing we will need to do is create a train and test split.
+
+```{R}
+# creating ID variable
+data$id <- 1:nrow(data)
+
+# I will use a 75-25 train test split
+train <- data %>%
+  dplyr::sample_frac(0.75)
+
+test <- dplyr::anti_join(data, train, by = 'id')
+
+train <- train %>%
+  select(-id)
+
+test <- test %>%
+  select(-id)
+```
+
+Next, we will fit a model. This utilizes the discrim library. Due to how old this library and model is, it will throw a warning but it is safe to ignore it.
+
+```{R}
+# fitting the model
+lda <- discrim_linear() %>%
+  set_mode("classification") %>%
+  set_engine("MASS") %>%
+  fit(binary_vote ~ country, data = train)
+```
+
+Next, we will get predictions from this model.
+
+```{R}
+# getting predictions
+predict(lda, new_data = test, type = "prob")
+
+# creating a confusion matrix
+augment(lda, new_data = test) %>%
+  conf_mat(truth = binary_vote, estimate = .pred_class)
+
+# getting accuracy of model
+augment(lda, new_data = test) %>%
+  accuracy(truth = binary_vote, estimate = .pred_class)
+```
+
+As you can see, our model had about an 85% accuracy. However, this is most likely because the data was highly skewed to yes class level.
