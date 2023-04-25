@@ -1,0 +1,58 @@
+---
+title: "data cleaning"
+author: "James "Mac" Stewart"
+date: '2023-04-25'
+output: html_document
+---
+
+# Data Cleaning and Exploratory Analysis
+
+```{r setup, include=FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+```
+
+## Importing Data
+
+```{R}
+# reading in data
+starbucks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-12-21/starbucks.csv')
+
+# selecting variables
+starbucks <- starbucks %>%
+  select(-product_name) 
+
+# making factors
+starbucks$size <- as.factor(starbucks$size)
+starbucks$milk <- as.factor(starbucks$milk)
+starbucks$whip <- as.factor(starbucks$whip)
+```
+
+## Exploratory Data Analysis
+
+I will want to graph the variables against each other using ggpairs() to try and find any relationships
+
+```{R}
+# graphing numeric variables
+starbucks %>%
+  select(is.numeric) %>%
+  ggpairs()
+```
+
+Based on this, there definitely seems to be some pretty strong felationships between the class variable calories and all of the other explanatory variables except for caffeine. There also seems to be some pretty strong relationships between all of the explanotry variables which might indicate some interaction affects that will be explored in the multiple linear regression.
+
+## Exportind Data
+
+```{R}
+write.csv(starbucks, "~/R/sta631/language-comparison/linear-regression/Data/starbucks.csv")
+```

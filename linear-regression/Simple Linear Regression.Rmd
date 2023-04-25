@@ -1,0 +1,80 @@
+---
+title: "Simple Linear Regression"
+author: "James "Mac" Stewart"
+date: '2023-04-25'
+output: html_document
+---
+
+# Simple Linear Regression
+
+```{r setup, include=FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+```
+
+## Importing Data
+
+```{R}
+# reading in the data
+starbucks <- read.csv("~/R/sta631/language-comparison/linear-regression/Data/starbucks.csv")
+
+# creating factor variables
+starbucks$size <- as.factor(starbucks$size)
+starbucks$milk <- as.factor(starbucks$milk)
+starbucks$whip <- as.factor(starbucks$whip)
+```
+
+# R
+
+Based on the ggpairs() output that was creating in the data cleaning file, a lot of the explanatory variables were greatly correlated with the number of calories in the starbucks drink. However, total_carbs_g and sugar_g seemed to have the least amount of spread in their relationship line. As such, these are the two variables that we will use for our simple linear regression.
+
+First we will test the total-carbs_g variable.
+
+```{R}
+# creating the model
+lm1 <- lm(calories ~ total_carbs_g, data = starbucks)
+
+# viewing the model
+tidy(lm1)
+glance(lm1)
+```
+
+Next, I will test the sugar_g variable.
+
+```{R}
+# creating the model
+lm2 <- lm(calories ~ sugar_g, data = starbucks)
+
+# viewing the model
+tidy(lm2)
+glance(lm2)
+```
+
+Based on the two outputs, it looks like the model using total_carbs_g has the most variance explained.
+
+## Checking Assumptions
+
+With every linear regression, you will need to check the assumptions of the model. First we can assume that the different rows are independent from each other. For constant variance and linearity assumptions, we will use a residual vs fitted plot and QQ plot.
+
+```{R}
+par(mfrow = c(2, 2))
+plot(lm1)
+```
+
+Based on this plot, we can say that there is a linear relationship based on the residual vs fitted plot going in a straight line. You can also say that the residuals are normally distributed by the QQ plot following the diagonal line. While there does seem to be some isues with heteroskedasticity which can be seen by the small range of residual vs fitted values on the left compared to the right and the scale location being slightly skewed upwards, I do not believe it will be much of a concern.
+
+
+
+
+
+
