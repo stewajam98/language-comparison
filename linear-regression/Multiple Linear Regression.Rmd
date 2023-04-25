@@ -1,0 +1,99 @@
+---
+title: "Multiple Linear Regression"
+author: "James "Mac" Stewart"
+date: '2023-04-25'
+output: html_document
+---
+
+# Multiple Linear Regression
+
+```{r setup, include=FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+```
+
+## Importing Data
+
+```{R}
+# reading in the data
+starbucks <- read.csv("~/R/sta631/language-comparison/linear-regression/Data/starbucks.csv")
+
+# creating factor variables
+starbucks$size <- as.factor(starbucks$size)
+starbucks$milk <- as.factor(starbucks$milk)
+starbucks$whip <- as.factor(starbucks$whip)
+```
+
+# R
+
+The first model that we are going to try is including all of the variables in the data set.
+
+```{R}
+# creating the model
+lm1 <- lm(calories ~ ., data = starbucks)
+
+# viewing the model
+tidy(lm1)
+glance(lm1)
+```
+
+This model had almost 100% of the variance explained. There were a few variables included that I will want to remove as they seem to not be significant. The first variable that was not significant was caffeine_mg.
+
+```{R}
+# creating new dataset
+starbucks2 <- starbucks %>% select(-caffeine_mg)
+
+# creating the model
+lm2 <- lm(calories ~ ., data = starbucks2)
+
+# viewing the model
+tidy(lm2)
+glance(lm2)
+```
+
+Interestingly enough, the other variable that does not seem to be helpful in predicting the number of calories for the starbucks drink is sugar_g. If we look back at the ggpairs() output in the data cleaning file, you can see that total_carbs_g and sugar_g were extremely correlated with each other. Because they are so correlated, the variance being explained by total_carbs_g might do the majority of the explaining for sugar_g and so it is not helping. Sugar_g will be removed next.
+
+```{R}
+# creating the new data set
+starbucks2 <- starbucks2 %>% select(-sugar_g)
+
+# creating the model
+lm3 <- lm(calories ~ ., data = starbucks2)
+
+# viewing the model
+tidy(lm3)
+glance(lm3)
+```
+
+While it does not seem to be necessary in this model, I think that it is important to look at interaction affects when comparing two different languages. Because of that, I will try to add a few interaction affects to get a better result.
+
+```{R}
+lm4 <- lm(calories ~ . + (total_fat_g * cholesterol_mg), data = starbucks2)
+
+# viewing the model
+tidy(lm4)
+glance(lm4)
+```
+
+While the model only seems to be marginally better, the interaction was significant.
+
+## Checking assumptions
+
+Similar to what was done with simple linear regression, we will need to check the assumptiosn for the model.
+
+```{R}
+par(mfrow = c(2, 2))
+plot(lm4)
+```
+
+All of the assumptions seem to be relatively met. The residual versus fitted plot follows the straight horizontal line and seems to be relatively constant in it's variance. Additionally, the QQ plot seems to follow the diagonal line decently well. The biggest issues seem to be the outliers which are having a drastic pull on the model. However, with an r^2 value of ~0.99 I don't think that these are overly important.
