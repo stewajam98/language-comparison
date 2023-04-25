@@ -98,7 +98,7 @@ import scipy
 starbucks = pd.DataFrame(r.starbucks)
 
 # creating categorical variables
-starbucks[['size', 'whip', 'milk']] = starbucks[['size', 'whip', 'milk']].astype('category')
+starbucks[['size', 'whip',= 'milk']] = starbucks[['size', 'whip', 'milk']].astype('category')
 ```
 
 ## Running the Models

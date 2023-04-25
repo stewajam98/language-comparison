@@ -11,6 +11,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# R
+
 ## Necessary Packages
 
 ```{R}
@@ -34,7 +36,7 @@ starbucks$milk <- as.factor(starbucks$milk)
 starbucks$whip <- as.factor(starbucks$whip)
 ```
 
-# R
+## Running the Models
 
 The first model that we are going to try is including all of the variables in the data set.
 
@@ -97,3 +99,146 @@ plot(lm4)
 ```
 
 All of the assumptions seem to be relatively met. The residual versus fitted plot follows the straight horizontal line and seems to be relatively constant in it's variance. Additionally, the QQ plot seems to follow the diagonal line decently well. The biggest issues seem to be the outliers which are having a drastic pull on the model. However, with an r^2 value of ~0.99 I don't think that these are overly important.
+
+# python
+
+## Necessary Packages
+
+```{python}
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy
+```
+
+## Importing Data
+
+```{python}
+# reading in the data
+starbucks = pd.DataFrame(r.starbucks)
+
+# dropping the X variable
+starbucks = starbucks.drop("X", axis = 1)
+
+# creating categorical variables
+starbucks[['size', 'milk']] = starbucks[['size', 'milk']].astype('category')
+```
+
+## Running the Models
+
+In this section, I want to take another approach at creating the model in python. Instead of using Scikit Learn's packages, i will attempt to use the statsmodels package. The first thing we will need to do is utilize pandas get_dummies() to create dummy variables for the ones that are categorical.
+
+```{python}
+starbucks = pd.get_dummies(starbucks)
+```
+
+Next, we will try to run the full model.
+
+```{python}
+# creating the variables
+X = starbucks.drop('calories', axis = 1)
+y = starbucks[['calories']]
+
+# creating the model
+lm1 = sm.OLS(y, X).fit()
+lm1.summary()
+```
+
+As you can see, the output from this model is significantly more in-depth and closer to the output produced by the r code. It is also simpler to use than the scikit learn packages. There do appear to be some differences in the results however. This is most likely due to how we handled the categorical variables in this dataset. For instance, caffeine appears to be a significant predictor in this model where it was not in the R output.
+
+There are some variables that don't seem to be significant (sugar_g and sodium_mg) which should be addressed. We will first remove sugar_g.
+
+```{python}
+# creating the variables
+X = starbucks.drop(['calories', 'sugar_g'], axis = 1)
+y = starbucks[['calories']]
+
+# creating the model
+lm2 = sm.OLS(y, X).fit()
+lm2.summary()
+```
+
+This didn't make much of a difference between the models so we will continue and drop sodium_mg.
+
+```{python}
+# creating the variables
+X = starbucks.drop(['calories', 'sugar_g', 'sodium_mg'], axis = 1)
+y = starbucks[['calories']]
+
+# creating the model
+lm3 = sm.OLS(y, X).fit()
+lm3.summary()
+```
+
+Once again, this didn't seem to make much of a difference between the models but there are no longer any single variables that are not significant. Because of this, we will continue on using this model.
+
+For testing interaction effects, in python you will have to create the column with the interaction. An example with the same relationship shown in the r code can be seen below.
+
+```{python}
+# creating the interaction affect
+starbucks['fat_x_chol'] = starbucks['total_fat_g'].multiply(starbucks['cholesterol_mg'], axis = 'index')
+
+# creating the variables
+X = starbucks.drop(['calories', 'sugar_g', 'sodium_mg'], axis = 1)
+y = starbucks[['calories']]
+
+# creating the model
+lm4 = sm.OLS(y, X).fit()
+lm4.summary()
+```
+
+While the interaction does seem to be a significant predictor, it didn't seem to affect the model's r^2 value like it did in the r version. Because of that, It will be better to continue with the simpler model.
+
+Creating an interaction affect did seem to be a bit more tedious in the python version. It required you to create an additional variable inside the dataset instead of just including it in the model and having the function make the calculations for you. This might speed up the process in the long term however.
+
+## Checking Assumptions
+
+This process will be quite similar to what was done in simple linear regression. As such, I will do a little less explaining here.
+
+```{python}
+# creating predictions
+predictions = lm3.predict()
+
+## Residual vs Fitted plot
+# clearing figure layouts
+plt.clf()
+plt.cla()
+
+# creating plots
+sns.residplot(x=predictions.reshape(-1), y='calories', data = starbucks, lowess = True, line_kws={'color': 'red', 'lw': 1, 'alpha':1})
+
+# setting axis labels, title, and layout
+plt.xlabel("Fitted values")
+plt.title("Residual")
+plt.tight_layout()
+
+# printing visual.
+plt.show()
+
+## Q-Q Plot
+# clearing figure layouts
+plt.clf()
+plt.cla()
+
+# getting residuals
+residuals = starbucks['calories'] - predictions.reshape(-1)
+
+# creating figure
+scipy.stats.probplot(residuals, dist = 'norm', plot = plt)
+
+# setting title and layout
+plt.tight_layout()
+plt.title("Normal Q-Q Plot")
+
+# printing visual
+plt.show()
+```
+
+The output from these graphs are very similar to what we had seen in the r output with not much more to say.
+
+# Overall Assessment
+
+Based on what we did in this program, I think that there is not much of a difference between using r or python. The statsmodels library created much more detailed output that what we had seen with scikit learn and is even in a more aesthetically pleasing format than that of r. However, created interaction affects is cumbersome and requires storing more information in memory which is a bigger drawback. Finally, the visual representation is not improved with the statsmodels library so the simplicity of R to visualize their plots is a big bonus.
+
