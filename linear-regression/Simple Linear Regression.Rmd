@@ -7,19 +7,10 @@ output: html_document
 
 # Simple Linear Regression
 
+Simple linear regression is a regression model type that utilizes only one explanatory variable. It is simple and looks to find binary relationships that can be easy to understand.
+
 ```{r setup, include=FALSE, warning = FALSE, message = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-## Necessary Packages
-
-```{R}
-library(tidyverse)
-library(tidymodels)
-library(GGally)
-library(reticulate)
-library(leaps)
-library(forcats)
 ```
 
 ## Importing Data
@@ -36,9 +27,22 @@ starbucks$whip <- as.factor(starbucks$whip)
 
 # R
 
+## Necessary Packages
+
+```{R}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(reticulate)
+library(leaps)
+library(forcats)
+```
+
+## Running the Models
+
 Based on the ggpairs() output that was creating in the data cleaning file, a lot of the explanatory variables were greatly correlated with the number of calories in the starbucks drink. However, total_carbs_g and sugar_g seemed to have the least amount of spread in their relationship line. As such, these are the two variables that we will use for our simple linear regression.
 
-First we will test the total-carbs_g variable.
+First we will test the total_carbs_g variable.
 
 ```{R}
 # creating the model
@@ -73,8 +77,119 @@ plot(lm1)
 
 Based on this plot, we can say that there is a linear relationship based on the residual vs fitted plot going in a straight line. You can also say that the residuals are normally distributed by the QQ plot following the diagonal line. While there does seem to be some isues with heteroskedasticity which can be seen by the small range of residual vs fitted values on the left compared to the right and the scale location being slightly skewed upwards, I do not believe it will be much of a concern.
 
+# python
 
+## Necessary Packages
 
+For the python models, we will be utilizing the scikit learn library that includes many different types of models to be used.
 
+```{python}
+import pandas as pd
+from sklearn.linear_model import LinearRegression as lr
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy
+```
 
+## Importing Data
 
+```{python}
+# reading in the data
+starbucks = pd.DataFrame(r.starbucks)
+
+# creating categorical variables
+starbucks[['size', 'whip', 'milk']] = starbucks[['size', 'whip', 'milk']].astype('category')
+```
+
+## Running the Models
+
+While we know what R states as the best model, it will be beneficial to compare how we would get similar output to compare differnt regression models in python. So, I will be going through the whole process again. First, we will print out the model just using total_carbs_g variable. 
+
+```{python}
+# setting variables
+X = starbucks[['total_carbs_g']]
+y = starbucks[['calories']]
+
+# Creating the model
+lm1 = lr().fit(X, y)
+
+# getting the r^2 value and coefficients
+lm1.score(X, y)
+lm1.coef_
+```
+
+The r functions tidy() and glance() give a pretty detailed look at the models that are created. When looking at the output from the scikit learn functions .score() and .coef_, they don't seem to provide much information. However, they do provide the few variables that we would use to understand the relationship. The function .score() provides the r^2 value for the model and .coef_ provides the coefficient of the explanatory variable. While there are definitely downsides to only getting the bare amount of information, for someone who is just interested in using the model, these would be the most important information and what is needed to compare different models to each other.
+
+The next model will use the explanatory variable sugar_g.
+
+```{python}
+# setting variables
+X = starbucks[['sugar_g']]
+y = starbucks[['calories']]
+
+# creating the model
+lm2 = lr().fit(X, y)
+
+# getting the r^2 value and coefficients
+lm2.score(X, y)
+lm2.coef_
+```
+
+Similar to what was shown by the R output, the model created with total_carbs_g has the better variance explained for the model and so would be the best simple linear regression model for this dataset.
+
+## Checking Assumptions
+
+When looking to check the assumptions of the model in python, we still want to utilize the QQ and residual vs fitted plots that were created using the plot() function in R. An excellent article published in [Towards Data Science](https://towardsdatascience.com/simulating-replicating-r-regression-plot-in-python-using-sklearn-4ee48a15b67) written by Vikashraj Luhaniwal gives a pretty good example of how to do this.
+
+To duplicate these, the first thing we will need to do is get the predictions from the model from the base data set.
+
+```{python}
+predictions = lm1.predict(starbucks[['total_carbs_g']])
+```
+
+Now we can create each plot separatly using the seaborn and matplot lib packages. The first visual we will create is the residual vs fitted plot.
+
+```{python}
+# clearing figure layouts
+plt.clf()
+plt.cla()
+
+# creating plots
+sns.residplot(x=predictions.reshape(-1), y='calories', data = starbucks, lowess = True, line_kws={'color': 'red', 'lw': 1, 'alpha':1})
+
+# setting axis labels, title, and layout
+plt.xlabel("Fitted values")
+plt.title("Residual")
+plt.tight_layout()
+
+# printing visual.
+plt.show()
+```
+
+Next we will create the QQ plot. For this visual, we will actually need to get the residual values.
+
+```{python}
+# clearing figure layouts
+plt.clf()
+plt.cla()
+
+# getting residuals
+residuals = starbucks['calories'] - predictions.reshape(-1)
+
+# creating figure
+scipy.stats.probplot(residuals, dist = 'norm', plot = plt)
+
+# setting title and layout
+plt.tight_layout()
+plt.title("Normal Q-Q Plot")
+
+# printing visual
+plt.show()
+
+```
+
+Once again, the python gives very similar results as the R program, but with a more complicated method of obtaining it. The visuals created here are the most simplistic form that could be done in python, and with additional effort, could be improved.
+
+# Overall Assessment
+
+While both languages were similar in ease of use with the initial model creation, there seemed to be some pretty drastic differences in both the amount of output results created and the difficulty in created further model analysis tools. Python's output seemed to be focused on use by people not as interested in the statistical analysis and more of the operational use of the packages.

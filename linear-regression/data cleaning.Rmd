@@ -11,15 +11,21 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# R
+
 ## Necessary Packages
 
 ```{R}
+# packages
 library(tidyverse)
 library(tidymodels)
 library(GGally)
 library(reticulate)
 library(leaps)
 library(forcats)
+
+# reticulate setup
+repl_python()
 ```
 
 ## Importing Data
@@ -29,13 +35,13 @@ library(forcats)
 starbucks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-12-21/starbucks.csv')
 
 # selecting variables
-starbucks <- starbucks %>%
+starbucks2 <- starbucks %>%
   select(-product_name) 
 
 # making factors
-starbucks$size <- as.factor(starbucks$size)
-starbucks$milk <- as.factor(starbucks$milk)
-starbucks$whip <- as.factor(starbucks$whip)
+starbucks2$size <- as.factor(starbucks2$size)
+starbucks2$milk <- as.factor(starbucks2$milk)
+starbucks2$whip <- as.factor(starbucks2$whip)
 ```
 
 ## Exploratory Data Analysis
@@ -44,15 +50,69 @@ I will want to graph the variables against each other using ggpairs() to try and
 
 ```{R}
 # graphing numeric variables
-starbucks %>%
+starbucks2 %>%
   select(is.numeric) %>%
   ggpairs()
 ```
 
 Based on this, there definitely seems to be some pretty strong felationships between the class variable calories and all of the other explanatory variables except for caffeine. There also seems to be some pretty strong relationships between all of the explanotry variables which might indicate some interaction affects that will be explored in the multiple linear regression.
 
+# Python
+
+For this part, I will basically be doing the same things that were done in the r-code but in python. Because of this, unless there are specific differences in the findings, I will mostly be discussing my opinion on the differences between the two code chunks. 
+
+## Necessary Packages
+
+```{python}
+# packages
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+```
+
+## Importing the Data
+
+For the original data set, instead of importing from the website, I will be utilizing reticulate to borrow that data set object. To do this, you will call the r library and then use the dataframe as an input.
+
+```{python}
+# creating the pandas dataframe
+starbucks = pd.DataFrame(r.starbucks)
+
+# removing unwanted columns
+starbucks = starbucks.drop('product_name', axis = 1)
+
+# creating python 'categories'
+starbucks[['size', 'milk', 'whip']] = starbucks[['size', 'milk', 'whip']].astype('category')
+```
+
+Overall, while the syntax is a bit different between pandas and dplyr, this is about the same functionally. One unique difference is that python classifies their factor-like variables as categories which have the option to include an order; however, there is no need for this in our current investigation so it will be ignored.
+
+## Exploratory Data Analysis
+
+The next step in the r program was to use the ggpairs() function to create a visual map of the binary variable relationships. This is significantly more difficult in python and will utilize the seaborn class. A stackoverflow post [here](https://stackoverflow.com/questions/68967458/is-there-is-an-equivalent-of-rs-ggallyggpairs-function-in-python) gives a good example of how to do this.
+
+```{python}
+plt.tight_layout()
+g = sns.PairGrid(starbucks, vars = ['calories', 'total_fat_g', 'saturated_fat_g', 'cholesterol_mg', 'serv_size_m_l', 'trans_fat_g', 'sodium_mg', 'total_carbs_g', 'fiber_g', 'sugar_g', 'caffeine_mg'])
+g.map_diag(sns.histplot)
+g.map_lower(sns.scatterplot, size = .1)
+plt.show()
+```
+
+Not only is the base output significantly worse, but it is much more difficult to obtain than what is done in R. However, with more time, seaborn has the capacity to make some really good looking plots that could possibly be better than the one produced by ggpairs(). 
+
 ## Exportind Data
 
+Here, I am going to output the created dataset to a data folder that can be accessed by the other files in this repository. This way, they don't have to clean the data themselves.
+
 ```{R}
-write.csv(starbucks, "~/R/sta631/language-comparison/linear-regression/Data/starbucks.csv")
+write.csv(starbucks2, "~/R/sta631/language-comparison/linear-regression/Data/starbucks.csv")
 ```
+
+While I'm not going to reproduce this step in python and accidentally duplicate the number of datasets being put to the github repository, the code to output this can be seen below.
+
+starbucks.to_csv("./R/sta631/language-comparison/linear-regression/Data/starbucks.csv")
+
+# Comparison
+
+Overall, I think the initial processing of the datasets is about the same. Dplyr and it's use of pipelines can be very handy in completing data transformations and summary tables in a streamlined set of code. Pandas on the other hand provides a more intuitive usage. When it comes to exploratory analysis, the ggpairs() function is very handy and quick to create. However, with a significant more effort, python's visualization tools are extremely versatile and can create just as good, or better visualizations.
