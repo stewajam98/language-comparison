@@ -11,6 +11,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# R
+
 ## Necessary Packages
 
 ```{R}
@@ -121,9 +123,85 @@ soccer_decisive %>%
 
 While it is hard to see with these visualizations, there do appear to be some relationships. Specifically, you can see some interactions between HS-AS, HS-HST, HS-AST, AS-AST, and AS-AC. If these variables are significant predictors in the model, we might include their interaction affects.
 
+# python
+
+## Necessary Packages
+
+```{python}
+# packages
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+```
+
+As stated, because I have already cleaned data in the linear regression section, this will be less in-depth. However, there are some additional things done in this section so I will go through it.
+
+## Importing Data
+
+```{python}
+# reading in the data
+soccer = pd.DataFrame(r.soccer)
+
+# dropping unneeded variables
+soccer2 = soccer.drop(["FTHG", "FTAG", "Date"])
+```
+
+Next, I need to create frequency tables for each of the categorical variables. This is not something that was done in the linear regression data cleaning. To do this, I will utilize the pandas .value_counts()
+
+```{python}
+soccer['Referee'].value_counts()
+print("")
+soccer['HomeTeam'].value_counts()
+print("")
+soccer['AwayTeam'].value_counts()
+```
+
+This process felt a lot easier utilizing the functions in pandas and didn't require a dplyr pipeline.
+
+The next step was dropping these categorical values and making the other ones as factors. Again, these will be created as category type variables in python.
+
+```{python}
+# dropping variables
+soccer2 = soccer.drop(['Referee','HomeTeam','AwayTeam'], axis = 1)
+
+# creating category variables
+soccer2[['FTR','HTR']] = soccer2[['FTR','HTR']].astype('category')
+```
+
+Next, a second data set was created that only included games that had a decisive win (either the home or away team won).
+
+```{python}
+soccer_decisive = soccer2[soccer2['FTR'] != 'D']
+```
+
+Filtering is pretty much the same for both.
+
+The next thing that we did was create a summary statistics table.
+
+```{python}
+summary = soccer2.describe()
+summary
+```
+
+This was relatively simple in python. Pandas provides a .describe() function that returns summary statistics for all of the columns included in the dataframe. I have it saved as a separate dataframe so that it can be viewed in it's entirety. You could transpose this table to have it flipped with each row being a variable but that doesn't seem necessary.
+
+Finally, we create the ggpairs() table that was created.
+
+```{python}
+plt.tight_layout()
+g = sns.PairGrid(soccer2)
+g.map_diag(sns.histplot)
+g.map_lower(sns.scatterplot, size = .1)
+plt.show()
+```
+
 ## Exporting Data
 
 ```{R}
 write.csv(soccer2, "~/R/sta631/language-comparison/logistic-regression/Data/soccer.csv", row.names = FALSE)
 write.csv(soccer_decisive, "~/R/sta631/language-comparison/logistic-regression/Data/soccer_binary.csv", row.names = FALSE)
 ```
+
+# Overall Assessment
+
+When it comes to this batch of data cleaning, it seemed that python and the use of pandas was better with doing these basic functions. However, there was still a drawback with the exploratory visualization creation in python in comparison to the ease of doing them in r.
