@@ -151,6 +151,8 @@ Creating a train-test split for cross validation in python is substantially easi
 x_train, x_test, y_train, y_test = tts(soccer_decisive.drop('FTR_H', axis = 1), soccer_decisive[['FTR_H']], test_size = 0.25)
 ```
 
+## Running Models
+
 The next thing will be running the models. As what was done in r, I will be running simple logistic regression models for HTHG, HTAG, HST, and AST.
 
 ```{python}

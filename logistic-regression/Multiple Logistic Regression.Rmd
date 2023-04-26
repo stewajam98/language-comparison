@@ -11,6 +11,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# R
+
 ## Necessary Packages
 
 ```{R}
@@ -36,7 +38,6 @@ soccer_decisive$FTR <- as.factor(soccer_decisive$FTR)
 soccer_decisive$HTR <- as.factor(soccer_decisive$HTR)
 ```
 
-## R
 
 Because we are trying to predict things, I will be using a train-test split.
 
@@ -304,3 +305,47 @@ print(mlogr_more_cm)
 This ended up making the accuracy worse. So, while the interaction between AST and AS didn't seem significant, it is going to stay in the model. Because of this, the final model will be as follows.
 
   FTR ~ HTR + HST + AST + HC + AC + HR + (HS * HST) + (HS * AST) + (AS * AST) + (AS * AC)
+  
+# python
+
+Many of these topics/code chunks will be borrowed from the simple logistic regression which is where I tal about them in more detail.
+
+## Necessary Packages
+
+```{python}
+import pandas as pd
+from sklearn.linear_model import LogisticRegression as logr
+from sklearn.model_selection import train_test_split as tts
+from sklearn.metrics import accuracy_score, precision_score, confusion_matrix
+```
+
+## Importing Data
+
+```{python}
+# reading in the data
+soccer_decisive = pd.DataFrame(r.soccer_decisive)
+
+# creating category variables
+soccer_decisive[['FTR','HTR']] = soccer_decisive[['FTR', 'HTR']].astype('category')
+
+# creating dummy variables
+soccer_decisive = pd.get_dummies(soccer_decisive)
+## with this, it creates a dummy for both the home and away. I will only keep the home team ones and use those
+soccer_decisive = soccer_decisive.drop(['FTR_A', 'HTR_A'], axis = 1)
+
+# creating train test split
+x_train, x_test, y_train, y_test = tts(soccer_decisive.drop('FTR_H', axis = 1), soccer_decisive[['FTR_H']], test_size = 0.25)
+```
+
+## Running Models
+
+As I had mentioned in the simple logistic regression. Creating a function can make the process of running these models a lot easier. Here, I thought it would be a good idea to show this, especially due to the number of models that were ran in the r code chunks.
+
+```{python}
+# writing function to run the logistic regression model
+def run_logistic_model(x_train, x_test, y_train, y_test):
+  lr = logr().fit(x_train, y_train)
+  predictions = lr.predict(x_test)
+  
+
+```
