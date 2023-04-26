@@ -11,6 +11,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
+# R
+
 ## Necessary Packages
 
 ```{R}
@@ -35,8 +37,6 @@ soccer_decisive <- read.csv("~/R/sta631/language-comparison/logistic-regression/
 soccer_decisive$FTR <- as.factor(soccer_decisive$FTR)
 soccer_decisive$HTR <- as.factor(soccer_decisive$HTR)
 ```
-
-## R
 
 Because we are trying to predict things, I will be using a train-test split.
 
@@ -115,3 +115,92 @@ print(slogr_ast_cm)
 
 All of these models seem to work pretty well. The best model out of all of them seemed to be the number of shots on target by the away team (slogr_ast). This model had an accuracy of 0.7945, sensitivity of 0.70, and specificity of 0.88. This is promising. However it might be possible to get a better understanding with multiple logistic regression.
 
+# python
+
+For the python version of this, I will be utilizing the scikit learn packages for logistic regression.
+
+## Necessary Packages
+
+```{python}
+import pandas as pd
+from sklearn.linear_model import LogisticRegression as logr
+from sklearn.model_selection import train_test_split as tts
+from sklearn.metrics import accuracy_score, precision_score, confusion_matrix
+```
+
+## Importing Data
+
+This is pretty similar to what was done in the linear regression section. The python packages require categorical variables so we utilize the pandas .get_dummies() package.
+
+```{python}
+# reading in the data
+soccer_decisive = pd.DataFrame(r.soccer_decisive)
+
+# creating category variables
+soccer_decisive[['FTR','HTR']] = soccer_decisive[['FTR', 'HTR']].astype('category')
+
+# creating dummy variables
+soccer_decisive = pd.get_dummies(soccer_decisive)
+## with this, it creates a dummy for both the home and away. I will only keep the home team ones and use those
+soccer_decisive = soccer_decisive.drop(['FTR_A', 'HTR_A'], axis = 1)
+```
+
+Creating a train-test split for cross validation in python is substantially easier utilizing scikit learns packages. All that is required is a single function and it will output x_train, x_test.
+
+```{python}
+x_train, x_test, y_train, y_test = tts(soccer_decisive.drop('FTR_H', axis = 1), soccer_decisive[['FTR_H']], test_size = 0.25)
+```
+
+The next thing will be running the models. As what was done in r, I will be running simple logistic regression models for HTHG, HTAG, HST, and AST.
+
+```{python}
+# Half time home goals
+x_train1 = x_train[['HTHG']]
+x_test1 = x_test[['HTHG']]
+
+logr1 = logr().fit(x_train1, y_train)
+predictions = logr1.predict(x_test1)
+print("Accuracy:   {}".format(accuracy_score(y_test, predictions)))
+print("Precision:  {}".format(precision_score(y_test, predictions)))
+print("Confusion Matrix:  ")
+print("{}".format(confusion_matrix(y_test, predictions)))
+
+# Half time away goals
+x_train2 = x_train[['HTAG']]
+x_test2 = x_test[['HTAG']]
+
+logr2 = logr().fit(x_train2, y_train)
+predictions = logr2.predict(x_test2)
+print("Accuracy:   {}".format(accuracy_score(y_test, predictions)))
+print("Precision:  {}".format(precision_score(y_test, predictions)))
+print("Confusion Matrix:  ")
+print("{}".format(confusion_matrix(y_test, predictions)))
+
+# Home team shots on target
+x_train3 = x_train[['HST']]
+x_test3 = x_test[['HST']]
+
+logr3 = logr().fit(x_train3, y_train)
+predictions = logr3.predict(x_test3)
+print("Accuracy:   {}".format(accuracy_score(y_test, predictions)))
+print("Precision:  {}".format(precision_score(y_test, predictions)))
+print("Confusion Matrix: ")
+print("{}".format(confusion_matrix(y_test, predictions)))
+
+# Away team shots on target
+x_train4 = x_train[['AST']]
+x_test4 = x_test[['AST']]
+
+logr4 = logr().fit(x_train4, y_train)
+predictions = logr4.predict(x_test4)
+print("Accuracy:   {}".format(accuracy_score(y_test, predictions)))
+print("Precision:  {}".format(precision_score(y_test, predictions)))
+print("Confusion Matrix: ")
+print("{}".format(confusion_matrix(y_test, predictions)))
+
+```
+The outcome of the models in each language were slightly different which leaves to something needing to be investigated between the two.In terms of creating the model, they were both about the same, python required a little bit more code but feels more streamlined where r took less code overall. When getting the diagnostic tools, sklearn has individual packages for each of the different metrics which allows the user to pick and choose which information that they need. This is in contrast to the r package which prints out a lot of information that may not be important to those who don't need it.
+
+# Overal Assessment
+
+Overall, I think both of these are about the same. On a statistical end, I think that the r output is more beneficial because it allows you to get the informaiton that you need without having to ask for it all. However, I think in an operational use by someone just trying to create predictive models, the python model creation might be better simply because you can call only the stuff you need. Additionally, it would not be hard (and is what I do the majority of the time), to write a quick function that can do the repetitive calls for you.
